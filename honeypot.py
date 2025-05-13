@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import socket
 import json
 import datetime
@@ -61,8 +62,10 @@ def main():
             thread.daemon = True
             threads.append(thread)
             thread.start()
+            print(f"Honeypot successfully listening on 0.0.0.0:{port}...")
         except Exception as e:
             logging.error(f"Failed to start honeypot on port {port}: {str(e)}")
+            print(f"Skipping port {port} due to error: {str(e)}")
 
     # Keep the main thread alive
     try:
