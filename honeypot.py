@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
 import socket
 import json
 import datetime
 import threading
 import logging
 import platform
+from concurrent.futures import ThreadPoolExecutor
 
 # Configure logging
 logging.basicConfig(filename='honeypot.log', level=logging.INFO, 
@@ -13,7 +13,6 @@ logging.basicConfig(filename='honeypot.log', level=logging.INFO,
 def handle_client(client_socket, addr, port):
     """Handle incoming client connections."""
     try:
-        # Log connection details including the captured port
         data = client_socket.recv(1024).decode('utf-8', errors='ignore')
         log_entry = {
             'timestamp': str(datetime.datetime.now()),
@@ -24,8 +23,6 @@ def handle_client(client_socket, addr, port):
         }
         logging.info(json.dumps(log_entry))
         print(f"Connection from {addr[0]}:{addr[1]} on port {port} - Data: {data}")
-
-        # Send a fake banner
         client_socket.send(b"SSH-2.0-TonyHoneypot\r\n")
     except Exception as e:
         logging.error(f"Error handling client {addr[0]} on port {port}: {str(e)}")
@@ -47,32 +44,19 @@ def start_honeypot(port):
                 target=handle_client, args=(client_socket, addr, port))
             client_handler.start()
     except Exception as e:
-        logging.error(f"Server error on port {port}: {str(e)}")
+        logging.error(f"Failed to bind on port {port}: {str(e)}")
+        print(f"Skipping port {port}: {str(e)}")
     finally:
         server.close()
 
 def main():
-    # Define a range of ports to listen on (e.g., 1-1024 for common ports, expandable to 65535)
-    ports = range(1, 1025)  # Start with common ports; adjust to range(1, 65536) for all ports
-    threads = []
-    
-    for port in ports:
-        try:
-            thread = threading.Thread(target=start_honeypot, args=(port,))
-            thread.daemon = True
-            threads.append(thread)
-            thread.start()
-            print(f"Honeypot successfully listening on 0.0.0.0:{port}...")
-        except Exception as e:
-            logging.error(f"Failed to start honeypot on port {port}: {str(e)}")
-            print(f"Skipping port {port} due to error: {str(e)}")
-
-    # Keep the main thread alive
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        print("Honeypot stopped by user.")
+    ports = [21, 22, 23, 80, 443, 999, 8080]  # Added 22, 21, 23, 999
+    with ThreadPoolExecutor(max_workers=7) as executor:  # Adjusted for 7 ports
+        for port in ports:
+            executor.submit(start_honeypot, port)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Honeypot stopped by user.") 
